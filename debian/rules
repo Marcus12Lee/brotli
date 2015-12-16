@@ -1,0 +1,28 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE = 1
+
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/default.mk
+
+export PYBUILD_NAME = brotli
+
+%:
+	dh $@ --buildsystem=pybuild --with=python2 --with=python3
+
+override_dh_auto_build:
+	dh_auto_build
+	(cd tools; make)
+
+BROTLI_CMD=brotli
+override_dh_install:
+	cp tools/bro tools/$(BROTLI_CMD)
+	dh_install
+
+override_dh_auto_clean:
+	rm -f tools/$(BROTLI_CMD)
+
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+override_dh_auto_test:
+	dh_auto_test
+	debian/smoke_test.sh
+endif

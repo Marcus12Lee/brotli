@@ -1,0 +1,5 @@
+brotli (0.2.0+dfsg-1) unstable; urgency=low
+
+  * Initial release (Closes: #808062)
+
+ -- Tomasz Buchert <tomasz@debian.org>  Wed, 16 Dec 2015 10:34:42 +0100

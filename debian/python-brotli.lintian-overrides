@@ -1,0 +1,2 @@
+# False positive
+python-brotli: hardening-no-fortify-functions usr/lib/python2.7/dist-packages/brotli.x86_64-linux-gnu.so

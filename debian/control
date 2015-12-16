@@ -1,0 +1,55 @@
+Source: brotli
+Section: python
+Priority: optional
+Maintainer: Tomasz Buchert <tomasz@debian.org>
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               python,
+               python-dev,
+               python-setuptools,
+               python3,
+               python3-dev,
+               python3-setuptools
+Standards-Version: 3.9.6
+Homepage: https://github.com/google/brotli
+Vcs-Git: git://anonscm.debian.org/collab-maint/brotli.git
+Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/brotli.git
+
+Package: python-brotli
+Architecture: any
+Depends: ${misc:Depends}, ${python:Depends}, ${shlibs:Depends}
+Description: lossless compression algorithm and format (Python 2 version)
+ Brotli is a generic-purpose lossless compression algorithm
+ that compresses data using a combination of a modern variant
+ of the LZ77 algorithm, Huffman coding and 2nd order context modeling,
+ with a compression ratio comparable to the best currently available
+ general-purpose compression methods. It is similar in speed with
+ deflate but offers more dense compression.
+ .
+ This package installs a Python 2 module.
+
+Package: python3-brotli
+Architecture: any
+Depends: ${misc:Depends}, ${python3:Depends}, ${shlibs:Depends}
+Description: lossless compression algorithm and format (Python 3 version)
+ Brotli is a generic-purpose lossless compression algorithm
+ that compresses data using a combination of a modern variant
+ of the LZ77 algorithm, Huffman coding and 2nd order context modeling,
+ with a compression ratio comparable to the best currently available
+ general-purpose compression methods. It is similar in speed with
+ deflate but offers more dense compression.
+ .
+ This package installs a Python 3 module.
+
+Package: brotli
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: lossless compression algorithm and format (command line utility)
+ Brotli is a generic-purpose lossless compression algorithm
+ that compresses data using a combination of a modern variant
+ of the LZ77 algorithm, Huffman coding and 2nd order context modeling,
+ with a compression ratio comparable to the best currently available
+ general-purpose compression methods. It is similar in speed with
+ deflate but offers more dense compression.
+ .
+ This package installs a command line utility.
