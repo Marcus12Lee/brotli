@@ -1,17 +1,9 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2015 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Algorithms for distributing the literals and commands of a metablock between
 // block types and contexts.
 
@@ -64,7 +56,7 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                   &distance_histograms);
 
   // Histogram ids need to fit in one byte.
-  static const int kMaxNumberOfHistograms = 256;
+  static const size_t kMaxNumberOfHistograms = 256;
 
   mb->literal_histograms = literal_histograms;
   ClusterHistograms(literal_histograms,
@@ -247,7 +239,7 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
                           size_t n_commands,
                           MetaBlockSplit* mb) {
   int num_literals = 0;
-  for (int i = 0; i < n_commands; ++i) {
+  for (size_t i = 0; i < n_commands; ++i) {
     num_literals += commands[i].insert_len_;
   }
 
@@ -255,13 +247,13 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
       256, 512, 400.0, num_literals,
       &mb->literal_split, &mb->literal_histograms);
   BlockSplitter<HistogramCommand> cmd_blocks(
-      kNumCommandPrefixes, 1024, 500.0, n_commands,
+      kNumCommandPrefixes, 1024, 500.0, static_cast<int>(n_commands),
       &mb->command_split, &mb->command_histograms);
   BlockSplitter<HistogramDistance> dist_blocks(
-      64, 512, 100.0, n_commands,
+      64, 512, 100.0, static_cast<int>(n_commands),
       &mb->distance_split, &mb->distance_histograms);
 
-  for (int i = 0; i < n_commands; ++i) {
+  for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
     cmd_blocks.AddSymbol(cmd.cmd_prefix_);
     for (int j = 0; j < cmd.insert_len_; ++j) {
@@ -473,7 +465,7 @@ void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
                                       size_t n_commands,
                                       MetaBlockSplit* mb) {
   int num_literals = 0;
-  for (int i = 0; i < n_commands; ++i) {
+  for (size_t i = 0; i < n_commands; ++i) {
     num_literals += commands[i].insert_len_;
   }
 
@@ -481,13 +473,13 @@ void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
       256, num_contexts, 512, 400.0, num_literals,
       &mb->literal_split, &mb->literal_histograms);
   BlockSplitter<HistogramCommand> cmd_blocks(
-      kNumCommandPrefixes, 1024, 500.0, n_commands,
+      kNumCommandPrefixes, 1024, 500.0, static_cast<int>(n_commands),
       &mb->command_split, &mb->command_histograms);
   BlockSplitter<HistogramDistance> dist_blocks(
-      64, 512, 100.0, n_commands,
+      64, 512, 100.0, static_cast<int>(n_commands),
       &mb->distance_split, &mb->distance_histograms);
 
-  for (int i = 0; i < n_commands; ++i) {
+  for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
     cmd_blocks.AddSymbol(cmd.cmd_prefix_);
     for (int j = 0; j < cmd.insert_len_; ++j) {
@@ -525,17 +517,17 @@ void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
 void OptimizeHistograms(int num_direct_distance_codes,
                         int distance_postfix_bits,
                         MetaBlockSplit* mb) {
-  for (int i = 0; i < mb->literal_histograms.size(); ++i) {
+  for (size_t i = 0; i < mb->literal_histograms.size(); ++i) {
     OptimizeHuffmanCountsForRle(256, &mb->literal_histograms[i].data_[0]);
   }
-  for (int i = 0; i < mb->command_histograms.size(); ++i) {
+  for (size_t i = 0; i < mb->command_histograms.size(); ++i) {
     OptimizeHuffmanCountsForRle(kNumCommandPrefixes,
                                 &mb->command_histograms[i].data_[0]);
   }
   int num_distance_codes =
       kNumDistanceShortCodes + num_direct_distance_codes +
       (48 << distance_postfix_bits);
-  for (int i = 0; i < mb->distance_histograms.size(); ++i) {
+  for (size_t i = 0; i < mb->distance_histograms.size(); ++i) {
     OptimizeHuffmanCountsForRle(num_distance_codes,
                                 &mb->distance_histograms[i].data_[0]);
   }

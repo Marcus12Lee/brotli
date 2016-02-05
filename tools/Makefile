@@ -13,11 +13,11 @@ EXE_OBJS=$(patsubst %, %.o, $(EXECUTABLES))
 all : $(EXECUTABLES)
 
 $(EXECUTABLES) : $(EXE_OBJS) deps
-	$(CXX) $(LFLAGS) $(ENCOBJ) $(DECOBJ) $@.o -o $@
+	$(CXX) $(LDFLAGS) $(ENCOBJ) $(DECOBJ) $@.o -o $@
 
 deps :
 	$(MAKE) -C $(BROTLI)/dec
-	$(MAKE) -C $(BROTLI)/enc
+	$(MAKE) -C $(BROTLI)/enc nodict
 
 clean :
 	rm -f $(OBJS) $(EXE_OBJS) $(EXECUTABLES)

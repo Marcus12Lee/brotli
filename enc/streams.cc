@@ -1,17 +1,9 @@
-// Copyright 2009 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2009 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Convience routines to make Brotli I/O classes from some memory containers and
 // files.
 
@@ -23,12 +15,12 @@
 
 namespace brotli {
 
-BrotliMemOut::BrotliMemOut(void* buf, int len)
+BrotliMemOut::BrotliMemOut(void* buf, size_t len)
     : buf_(buf),
       len_(len),
       pos_(0) {}
 
-void BrotliMemOut::Reset(void* buf, int len) {
+void BrotliMemOut::Reset(void* buf, size_t len) {
   buf_ = buf;
   len_ = len;
   pos_ = 0;
@@ -44,13 +36,13 @@ bool BrotliMemOut::Write(const void *buf, size_t n) {
   return true;
 }
 
-BrotliStringOut::BrotliStringOut(std::string* buf, int max_size)
+BrotliStringOut::BrotliStringOut(std::string* buf, size_t max_size)
     : buf_(buf),
       max_size_(max_size) {
   assert(buf->empty());
 }
 
-void BrotliStringOut::Reset(std::string* buf, int max_size) {
+void BrotliStringOut::Reset(std::string* buf, size_t max_size) {
   buf_ = buf;
   max_size_ = max_size;
 }
@@ -63,12 +55,12 @@ bool BrotliStringOut::Write(const void *buf, size_t n) {
   return true;
 }
 
-BrotliMemIn::BrotliMemIn(const void* buf, int len)
+BrotliMemIn::BrotliMemIn(const void* buf, size_t len)
     : buf_(buf),
       len_(len),
       pos_(0) {}
 
-void BrotliMemIn::Reset(const void* buf, int len) {
+void BrotliMemIn::Reset(const void* buf, size_t len) {
   buf_ = buf;
   len_ = len;
   pos_ = 0;
@@ -89,18 +81,14 @@ const void* BrotliMemIn::Read(size_t n, size_t* output) {
 
 BrotliFileIn::BrotliFileIn(FILE* f, size_t max_read_size)
     : f_(f),
-      buf_(malloc(max_read_size)),
-      buf_size_(max_read_size) {}
+      buf_(new char[max_read_size]),
+      buf_size_(max_read_size) { }
 
 BrotliFileIn::~BrotliFileIn() {
-  if (buf_) free(buf_);
+  delete[] buf_;
 }
 
 const void* BrotliFileIn::Read(size_t n, size_t* bytes_read) {
-  if (buf_ == NULL) {
-    *bytes_read = 0;
-    return NULL;
-  }
   if (n > buf_size_) {
     n = buf_size_;
   } else if (n == 0) {
@@ -122,6 +110,5 @@ bool BrotliFileOut::Write(const void* buf, size_t n) {
   }
   return true;
 }
-
 
 }  // namespace brotli

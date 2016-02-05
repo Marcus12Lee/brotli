@@ -1,27 +1,19 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Functions to estimate the bit cost of Huffman trees.
 
 #ifndef BROTLI_ENC_BIT_COST_H_
 #define BROTLI_ENC_BIT_COST_H_
 
 
-#include <stdint.h>
 
 #include "./entropy_encode.h"
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -77,12 +69,12 @@ double PopulationCost(const Histogram<kSize>& histogram) {
     return 20 + histogram.total_count_;
   }
   double bits = 0;
-  uint8_t depth[kSize] = { 0 };
+  uint8_t depth_array[kSize] = { 0 };
   if (count <= 4) {
     // For very low symbol count we build the Huffman tree.
-    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
+    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth_array);
     for (int i = 0; i < kSize; ++i) {
-      bits += histogram.data_[i] * depth[i];
+      bits += histogram.data_[i] * depth_array[i];
     }
     return count == 3 ? bits + 28 : bits + 37;
   }
@@ -110,7 +102,7 @@ double PopulationCost(const Histogram<kSize>& histogram) {
       ++depth_histo[depth];
       ++i;
     } else {
-      // Compute the run length of zeros and add the appropiate number of 0 and
+      // Compute the run length of zeros and add the appropriate number of 0 and
       // 17 code length codes to the code length code histogram.
       int reps = 1;
       for (int k = i + 1; k < kSize && histogram.data_[k] == 0; ++k) {

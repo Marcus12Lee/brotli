@@ -1,24 +1,14 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // API for Brotli compression
 
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string>
 #include <vector>
 #include "./command.h"
@@ -26,6 +16,7 @@
 #include "./ringbuffer.h"
 #include "./static_dict.h"
 #include "./streams.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -52,7 +43,7 @@ struct BrotliParams {
     // Compression mode for UTF-8 format text input.
     MODE_TEXT = 1,
     // Compression mode used in WOFF 2.0.
-    MODE_FONT = 2,
+    MODE_FONT = 2
   };
   Mode mode;
 
@@ -80,12 +71,13 @@ class BrotliCompressor {
   ~BrotliCompressor();
 
   // The maximum input size that can be processed at once.
-  size_t input_block_size() const { return 1 << params_.lgblock; }
+  size_t input_block_size() const { return size_t(1) << params_.lgblock; }
 
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of
   // encoded_buffer) and sets *encoded_size to the number of bytes that
-  // was written. Returns 0 if there was an error and 1 otherwise.
+  // was written. The input_size must be <= input_block_size().
+  // Returns 0 if there was an error and 1 otherwise.
   bool WriteMetaBlock(const size_t input_size,
                       const uint8_t* input_buffer,
                       const bool is_last,
@@ -143,21 +135,18 @@ class BrotliCompressor {
   uint8_t* GetBrotliStorage(size_t size);
 
   bool WriteMetaBlockInternal(const bool is_last,
-                              const bool utf8_mode,
                               size_t* out_size,
                               uint8_t** output);
 
   BrotliParams params_;
   int max_backward_distance_;
-  std::unique_ptr<Hashers> hashers_;
+  Hashers* hashers_;
   int hash_type_;
   size_t input_pos_;
-  std::unique_ptr<RingBuffer> ringbuffer_;
-  std::unique_ptr<float[]> literal_cost_;
-  size_t literal_cost_mask_;
-  size_t cmd_buffer_size_;
-  std::unique_ptr<Command[]> commands_;
-  int num_commands_;
+  RingBuffer* ringbuffer_;
+  size_t cmd_alloc_size_;
+  Command* commands_;
+  size_t num_commands_;
   int num_literals_;
   int last_insert_len_;
   size_t last_flush_pos_;
@@ -168,8 +157,8 @@ class BrotliCompressor {
   uint8_t last_byte_bits_;
   uint8_t prev_byte_;
   uint8_t prev_byte2_;
-  int storage_size_;
-  std::unique_ptr<uint8_t[]> storage_;
+  size_t storage_size_;
+  uint8_t* storage_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
@@ -190,6 +179,7 @@ int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out);
 int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
                                        BrotliParams params,
                                        BrotliIn* in, BrotliOut* out);
+
 
 }  // namespace brotli
 

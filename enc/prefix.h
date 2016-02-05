@@ -1,25 +1,17 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Functions for encoding of integers into prefix codes the amount of extra
 // bits, and the actual values of the extra bits.
 
 #ifndef BROTLI_ENC_PREFIX_H_
 #define BROTLI_ENC_PREFIX_H_
 
-#include <stdint.h>
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -63,7 +55,7 @@ inline void PrefixEncodeCopyDistance(int distance_code,
                                      uint16_t* code,
                                      uint32_t* extra_bits) {
   if (distance_code < kNumDistanceShortCodes + num_direct_codes) {
-    *code = distance_code;
+    *code = static_cast<uint16_t>(distance_code);
     *extra_bits = 0;
     return;
   }
@@ -75,8 +67,9 @@ inline void PrefixEncodeCopyDistance(int distance_code,
   int prefix = (distance_code >> bucket) & 1;
   int offset = (2 + prefix) << bucket;
   int nbits = bucket - postfix_bits;
-  *code = kNumDistanceShortCodes + num_direct_codes +
-      ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix;
+  *code = static_cast<uint16_t>(
+      (kNumDistanceShortCodes + num_direct_codes +
+       ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix));
   *extra_bits = (nbits << 24) | ((distance_code - offset) >> postfix_bits);
 }
 

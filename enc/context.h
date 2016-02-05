@@ -1,29 +1,21 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Functions to map previous bytes into a context id.
 
 #ifndef BROTLI_ENC_CONTEXT_H_
 #define BROTLI_ENC_CONTEXT_H_
 
-#include <stdint.h>
+#include "./types.h"
 
 namespace brotli {
 
 // Second-order context lookup table for UTF8 byte streams.
 //
-// If p1 and p2 are the previous two bytes, we calcualte the context as
+// If p1 and p2 are the previous two bytes, we calculate the context as
 //
 //   context = kUTF8ContextLookup[p1] | kUTF8ContextLookup[p2 + 256].
 //
@@ -170,11 +162,12 @@ static inline uint8_t Context(uint8_t p1, uint8_t p2, int mode) {
     case CONTEXT_LSB6:
       return p1 & 0x3f;
     case CONTEXT_MSB6:
-      return p1 >> 2;
+      return static_cast<uint8_t>(p1 >> 2);
     case CONTEXT_UTF8:
       return kUTF8ContextLookup[p1] | kUTF8ContextLookup[p2 + 256];
     case CONTEXT_SIGNED:
-      return (kSigned3BitContextLookup[p1] << 3) + kSigned3BitContextLookup[p2];
+      return static_cast<uint8_t>((kSigned3BitContextLookup[p1] << 3) +
+                                  kSigned3BitContextLookup[p2]);
     default:
       return 0;
   }

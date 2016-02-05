@@ -1,27 +1,19 @@
-// Copyright 2010 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
+/* Copyright 2010 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 // Write bits into a byte array.
 
 #ifndef BROTLI_ENC_WRITE_BITS_H_
 #define BROTLI_ENC_WRITE_BITS_H_
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include "./port.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -49,7 +41,8 @@ inline void WriteBits(int n_bits,
 #ifdef BIT_WRITER_DEBUG
   printf("WriteBits  %2d  0x%016llx  %10d\n", n_bits, bits, *pos);
 #endif
-  assert(bits < 1ULL << n_bits);
+  assert((bits >> n_bits) == 0);
+  assert(n_bits <= 56);
 #ifdef IS_LITTLE_ENDIAN
   // This branch of the code can write up to 56 bits at a time,
   // 7 bits are lost by being perhaps already in *p and at least
@@ -66,12 +59,12 @@ inline void WriteBits(int n_bits,
   uint8_t *array_pos = &array[*pos >> 3];
   const int bits_reserved_in_first_byte = (*pos & 7);
   bits <<= bits_reserved_in_first_byte;
-  *array_pos++ |= bits;
+  *array_pos++ |= static_cast<uint8_t>(bits);
   for (int bits_left_to_write = n_bits - 8 + bits_reserved_in_first_byte;
        bits_left_to_write >= 1;
        bits_left_to_write -= 8) {
     bits >>= 8;
-    *array_pos++ = bits;
+    *array_pos++ = static_cast<uint8_t>(bits);
   }
   *array_pos = 0;
   *pos += n_bits;
