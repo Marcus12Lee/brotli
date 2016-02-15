@@ -43,6 +43,7 @@ Description: lossless compression algorithm and format (Python 3 version)
 
 Package: brotli
 Architecture: any
+Section: utils
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: lossless compression algorithm and format (command line utility)
  Brotli is a generic-purpose lossless compression algorithm
