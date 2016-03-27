@@ -1,3 +1,13 @@
+brotli (0.3.0+dfsg-3) unstable; urgency=medium
+
+  [ Raúl Benencia ]
+  * Fixes for CVE-2016-1968 and CVE-2016-1624 (Closes: #817233)
+
+  [ Tomasz Buchert ]
+  * Bump Standards-Version to 3.9.7 (no changes needed)
+
+ -- Tomasz Buchert <tomasz@debian.org>  Sun, 27 Mar 2016 09:00:55 +0200
+
 brotli (0.3.0+dfsg-2) unstable; urgency=medium
 
   * d/copyright: update to MIT
