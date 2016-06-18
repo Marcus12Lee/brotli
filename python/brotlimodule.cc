@@ -14,13 +14,27 @@ using namespace brotli;
 
 static PyObject *BrotliError;
 
+static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_bound) {
+  long value = PyInt_AsLong(o);
+  if ((value < (long) lower_bound) || (value > (long) upper_bound)) {
+    return 0;
+  }
+  *result = (int) value;
+  return 1;
+}
+
 static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   if (!PyInt_Check(o)) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
 
-  *mode = (BrotliParams::Mode) PyInt_AsLong(o);
+  int mode_value = -1;
+  if (!as_bounded_int(o, &mode_value, 0, 255)) {
+    PyErr_SetString(BrotliError, "Invalid mode");
+    return 0;
+  }
+  *mode = (BrotliParams::Mode) mode_value;
   if (*mode != BrotliParams::MODE_GENERIC &&
       *mode != BrotliParams::MODE_TEXT &&
       *mode != BrotliParams::MODE_FONT) {
@@ -37,8 +51,7 @@ static int quality_convertor(PyObject *o, int *quality) {
     return 0;
   }
 
-  *quality = PyInt_AsLong(o);
-  if (*quality < 0 || *quality > 11) {
+  if (!as_bounded_int(o, quality, 0, 11)) {
     PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
     return 0;
   }
@@ -52,8 +65,7 @@ static int lgwin_convertor(PyObject *o, int *lgwin) {
     return 0;
   }
 
-  *lgwin = PyInt_AsLong(o);
-  if (*lgwin < 10 || *lgwin > 24) {
+  if (!as_bounded_int(o, lgwin, 10, 24)) {
     PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
     return 0;
   }
@@ -67,8 +79,7 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
     return 0;
   }
 
-  *lgblock = PyInt_AsLong(o);
-  if ((*lgblock != 0 && *lgblock < 16) || *lgblock > 24) {
+  if (!as_bounded_int(o, lgblock, 0, 24) || (*lgblock != 0 && *lgblock < 16)) {
     PyErr_SetString(BrotliError, "Invalid lgblock. Can be 0 or in range 16 to 24.");
     return 0;
   }
@@ -80,7 +91,7 @@ PyDoc_STRVAR(compress__doc__,
 "Compress a byte string.\n"
 "\n"
 "Signature:\n"
-"  compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0)\n"
+"  compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0, dictionary='')\n"
 "\n"
 "Args:\n"
 "  string (bytes): The input data.\n"
@@ -94,6 +105,8 @@ PyDoc_STRVAR(compress__doc__,
 "  lgblock (int, optional): Base 2 logarithm of the maximum input block size.\n"
 "    Range is 16 to 24. If set to 0, the value will be set based on the\n"
 "    quality. Defaults to 0.\n"
+"  dictionary (bytes, optional): Custom dictionary. Only last sliding window\n"
+"     size bytes will be used.\n"
 "\n"
 "Returns:\n"
 "  The compressed byte string.\n"
@@ -103,32 +116,36 @@ PyDoc_STRVAR(compress__doc__,
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  uint8_t *input, *output;
-  size_t length, output_length;
+  uint8_t *input, *output, *custom_dictionary;
+  size_t length, output_length, custom_dictionary_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
   int quality = -1;
   int lgwin = -1;
   int lgblock = -1;
   int ok;
 
-  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock", NULL};
+  static const char *kwlist[] = {
+      "string", "mode", "quality", "lgwin", "lgblock", "dictionary", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&:compress",
+  custom_dictionary = NULL;
+  custom_dictionary_length = 0;
+
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&s#:compress",
                         const_cast<char **>(kwlist),
                         &input, &length,
                         &mode_convertor, &mode,
                         &quality_convertor, &quality,
                         &lgwin_convertor, &lgwin,
-                        &lgblock_convertor, &lgblock);
-
+                        &lgblock_convertor, &lgblock,
+                        &custom_dictionary, &custom_dictionary_length);
   if (!ok)
     return NULL;
 
-  output_length = 1.2 * length + 10240;
+  output_length = length + (length >> 2) + 10240;
   output = new uint8_t[output_length];
 
   BrotliParams params;
-  if (mode != -1)
+  if ((int) mode != -1)
     params.mode = mode;
   if (quality != -1)
     params.quality = quality;
@@ -137,8 +154,23 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   if (lgblock != -1)
     params.lgblock = lgblock;
 
-  ok = BrotliCompressBuffer(params, length, input,
-                            &output_length, output);
+  if (custom_dictionary_length == 0) {
+    ok = BrotliCompressBuffer(params, length, input,
+                              &output_length, output);
+  } else {
+    uint8_t *custom_dictionary_start = custom_dictionary;
+    BrotliMemIn in(input, length);
+    BrotliMemOut out(output, output_length);
+    size_t sliding_window_size = ((size_t)1) << params.lgwin;
+    if (custom_dictionary_length > sliding_window_size) {
+      custom_dictionary_start += custom_dictionary_length - sliding_window_size;
+      custom_dictionary_length = sliding_window_size;
+    }
+    ok = BrotliCompressWithCustomDictionary(custom_dictionary_length,
+        custom_dictionary_start, params, &in, &out);
+    output_length = out.position();
+  }
+
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)output, output_length);
   } else {
@@ -150,12 +182,6 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   return ret;
 }
 
-int output_callback(void* data, const uint8_t* buf, size_t count) {
-  std::vector<uint8_t> *output = (std::vector<uint8_t> *)data;
-  output->insert(output->end(), buf, buf + count);
-  return (int)count;
-}
-
 PyDoc_STRVAR(decompress__doc__,
 "Decompress a compressed byte string.\n"
 "\n"
@@ -164,6 +190,8 @@ PyDoc_STRVAR(decompress__doc__,
 "\n"
 "Args:\n"
 "  string (bytes): The compressed input data.\n"
+"  dictionary (bytes, optional): Custom dictionary. MUST be the same data\n"
+"     as passed to compress method.\n"
 "\n"
 "Returns:\n"
 "  The decompressed byte string.\n"
@@ -171,37 +199,60 @@ PyDoc_STRVAR(decompress__doc__,
 "Raises:\n"
 "  brotli.error: If decompressor fails.\n");
 
-static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
+static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  uint8_t *input;
-  size_t length;
+  const uint8_t *input, *custom_dictionary;
+  size_t length, custom_dictionary_length;
   int ok;
 
-  ok = PyArg_ParseTuple(args, "s#:decompress", &input, &length);
+  static const char *kwlist[] = {"string", "dictionary", NULL};
+
+  custom_dictionary = NULL;
+  custom_dictionary_length = 0;
+
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|s#:decompress",
+                        const_cast<char **>(kwlist),
+                        &input, &length,
+                        &custom_dictionary, &custom_dictionary_length);
   if (!ok)
     return NULL;
 
-  BrotliMemInput memin;
-  BrotliInput in = BrotliInitMemInput(input, length, &memin);
-
-  BrotliOutput out;
   std::vector<uint8_t> output;
-  out.cb_ = &output_callback;
-  out.data_ = &output;
+  const size_t kBufferSize = 65536;
+  uint8_t* buffer = new uint8_t[kBufferSize];
+  BrotliState* state = BrotliCreateState(0, 0, 0);
+  if (custom_dictionary_length != 0) {
+    BrotliSetCustomDictionary(custom_dictionary_length, custom_dictionary, state);
+  }
 
-  ok = BrotliDecompress(in, out);
+  BrotliResult result = BROTLI_RESULT_NEEDS_MORE_OUTPUT;
+  while (result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) {
+    size_t available_out = kBufferSize;
+    uint8_t* next_out = buffer;
+    size_t total_out = 0;
+    result = BrotliDecompressStream(&length, &input,
+                                    &available_out, &next_out,
+                                    &total_out, state);
+    size_t used_out = kBufferSize - available_out;
+    if (used_out != 0)
+      output.insert(output.end(), buffer, buffer + used_out);
+  }
+  ok = result == BROTLI_RESULT_SUCCESS;
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
+  
+  BrotliDestroyState(state);
+  delete[] buffer;
 
   return ret;
 }
 
 static PyMethodDef brotli_methods[] = {
   {"compress",   (PyCFunction)brotli_compress, METH_VARARGS | METH_KEYWORDS, compress__doc__},
-  {"decompress", brotli_decompress, METH_VARARGS, decompress__doc__},
+  {"decompress", (PyCFunction)brotli_decompress, METH_VARARGS | METH_KEYWORDS, decompress__doc__},
   {NULL, NULL, 0, NULL}
 };
 

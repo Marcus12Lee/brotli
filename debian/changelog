@@ -1,3 +1,10 @@
+brotli (0.4.0+dfsg-1) unstable; urgency=medium
+
+  * Imported Upstream version 0.4.0+dfsg
+  * Bumped Standards-Version to 3.9.8 (no changes needed)
+
+ -- Tomasz Buchert <tomasz@debian.org>  Sat, 18 Jun 2016 15:22:06 +0200
+
 brotli (0.3.0+dfsg-3) unstable; urgency=medium
 
   [ Raúl Benencia ]

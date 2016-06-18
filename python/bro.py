@@ -61,7 +61,7 @@ def main(args=None):
     parser.add_argument('-d', '--decompress', action='store_true',
                         help='Decompress input file', default=False)
     params = parser.add_argument_group('optional encoder parameters')
-    params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1],
+    params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1, 2],
                         help='The compression mode can be 0 for generic input, '
                         '1 for UTF-8 encoded text, or 2 for WOFF 2.0 font data. '
                         'Defaults to 0.')
@@ -71,7 +71,7 @@ def main(args=None):
                         'tradeoff. The higher the quality, the slower the '
                         'compression. Range is 0 to 11. Defaults to 11.')
     params.add_argument('--lgwin', metavar="LGWIN", type=int,
-                        choices=list(range(16, 25)),
+                        choices=list(range(10, 25)),
                         help='Base 2 logarithm of the sliding window size. Range is '
                         '10 to 24. Defaults to 22.')
     params.add_argument('--lgblock', metavar="LGBLOCK", type=int,
@@ -79,6 +79,8 @@ def main(args=None):
                         help='Base 2 logarithm of the maximum input block size. '
                         'Range is 16 to 24. If set to 0, the value will be set based '
                         'on the quality. Defaults to 0.')
+    params.add_argument('--custom-dictionary', metavar="FILE", type=str, dest='dictfile',
+                        help='Custom dictionary file.', default = None)
     # set default values using global DEFAULT_PARAMS dictionary
     parser.set_defaults(**DEFAULT_PARAMS)
 
@@ -103,13 +105,22 @@ def main(args=None):
     else:
         outfile = get_binary_stdio('stdout')
 
+    if options.dictfile:
+        if not os.path.isfile(options.dictfile):
+            parser.error('file "%s" not found' % options.dictfile)
+        with open(options.dictfile, "rb") as dictfile:
+            custom_dictionary = dictfile.read()
+    else:
+        custom_dictionary = ''
+
+
     try:
         if options.decompress:
-            data = brotli.decompress(data)
+            data = brotli.decompress(data, dictionary=custom_dictionary)
         else:
             data = brotli.compress(
                 data, mode=options.mode, quality=options.quality,
-                lgwin=options.lgwin, lgblock=options.lgblock)
+                lgwin=options.lgwin, lgblock=options.lgblock, dictionary=custom_dictionary)
     except brotli.error as e:
         parser.exit(1,'bro: error: %s: %s' % (e, options.infile or 'sys.stdin'))
 

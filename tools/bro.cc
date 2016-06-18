@@ -10,13 +10,47 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <string>
 
 #include "../dec/decode.h"
-#include "../enc/encode.h"
+#include "../enc/compressor.h"
+
+#if !defined(_WIN32)
+#include <unistd.h>
+#else
+#include <io.h>
+
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
+#define S_IRUSR S_IREAD
+#define S_IWUSR S_IWRITE
+#define fdopen _fdopen
+#define unlink _unlink
+
+#define fopen ms_fopen
+#define open ms_open
+
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#define fseek _fseeki64
+#define ftell _ftelli64
+#endif
+
+static inline FILE* ms_fopen(const char *filename, const char *mode) {
+  FILE* result = 0;
+  fopen_s(&result, filename, mode);
+  return result;
+}
+
+static inline int ms_open(const char *filename, int oflag, int pmode) {
+  int result = -1;
+  _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
+  return result;
+}
+#endif  /* WIN32 */
 
 
 static bool ParseQuality(const char* s, int* quality) {
@@ -162,7 +196,7 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
   return fdopen(fd, "wb");
 }
 
-int64_t FileSize(char *path) {
+static int64_t FileSize(char *path) {
   FILE *f = fopen(path, "rb");
   if (f == NULL) {
     return -1;
@@ -180,7 +214,12 @@ int64_t FileSize(char *path) {
 
 static const size_t kFileBufferSize = 65536;
 
-void Decompresss(FILE* fin, FILE* fout) {
+static void Decompresss(FILE* fin, FILE* fout) {
+  BrotliState* s = BrotliCreateState(NULL, NULL, NULL);
+  if (!s) {
+    fprintf(stderr, "out of memory\n");
+    exit(1);
+  }
   uint8_t* input = new uint8_t[kFileBufferSize];
   uint8_t* output = new uint8_t[kFileBufferSize];
   size_t total_out;
@@ -189,8 +228,6 @@ void Decompresss(FILE* fin, FILE* fout) {
   size_t available_out = kFileBufferSize;
   uint8_t* next_out = output;
   BrotliResult result = BROTLI_RESULT_NEEDS_MORE_INPUT;
-  BrotliState s;
-  BrotliStateInit(&s);
   while (1) {
     if (result == BROTLI_RESULT_NEEDS_MORE_INPUT) {
       if (feof(fin)) {
@@ -209,17 +246,17 @@ void Decompresss(FILE* fin, FILE* fout) {
       available_out = kFileBufferSize;
       next_out = output;
     } else {
-      break; /* Error of success. */
+      break; /* Error or success. */
     }
     result = BrotliDecompressStream(&available_in, &next_in,
-        &available_out, &next_out, &total_out, &s);
+        &available_out, &next_out, &total_out, s);
   }
   if (next_out != output) {
-    fwrite(output, 1, next_out - output, fout);
+    fwrite(output, 1, static_cast<size_t>(next_out - output), fout);
   }
-  BrotliStateCleanup(&s);
   delete[] input;
   delete[] output;
+  BrotliDestroyState(s);
   if ((result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
     fprintf(stderr, "failed to write output\n");
     exit(1);
@@ -286,7 +323,7 @@ int main(int argc, char** argv) {
       exit(1);
     }
     double uncompressed_bytes_in_MB =
-        (repeat * uncompressed_size) / (1024.0 * 1024.0);
+        static_cast<double>(repeat * uncompressed_size) / (1024.0 * 1024.0);
     if (decompress) {
       printf("Brotli decompression speed: ");
     } else {

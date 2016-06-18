@@ -9,5 +9,5 @@ ifeq ($(OS), Darwin)
   CPPFLAGS += -DOS_MACOSX
 endif
 
-CFLAGS += $(COMMON_FLAGS)
-CXXFLAGS += $(COMMON_FLAGS) -std=c++11
+CFLAGS += $(COMMON_FLAGS) -Wmissing-prototypes
+CXXFLAGS += $(COMMON_FLAGS) -Wmissing-declarations
