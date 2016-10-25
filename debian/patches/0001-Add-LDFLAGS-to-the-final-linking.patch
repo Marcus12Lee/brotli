@@ -1,0 +1,21 @@
+From: Tomasz Buchert <tomasz@debian.org>
+Date: Tue, 25 Oct 2016 22:57:51 +0200
+Subject: Add LDFLAGS to the final linking.
+
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index c728037..23f309c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -27,7 +27,7 @@ $(OBJECTS): $(DIRS)
+         -c $(patsubst %.o,%.c,$(patsubst $(OBJDIR)/%,%,$@)) -o $@
+ 
+ $(EXECUTABLE): $(OBJECTS)
+-	$(CC) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
++	$(CC) $(LDFLAGS) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
+ 
+ lib: $(LIBOBJECTS)
+ 	rm -f $(LIB_A)

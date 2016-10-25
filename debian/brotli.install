@@ -1,1 +1,1 @@
-tools/brotli usr/bin
+bin/brotli usr/bin

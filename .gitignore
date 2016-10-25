@@ -3,6 +3,7 @@
 *.txt.uncompressed
 *.bro
 *.unbro
-tools/bro
-build/
+bin/
+buildfiles/
+**/obj/
 dist/

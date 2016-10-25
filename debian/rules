@@ -11,18 +11,20 @@ export PYBUILD_NAME = brotli
 
 override_dh_auto_build:
 	dh_auto_build
-	(cd tools; make)
+	make bro
 
 BROTLI_CMD=brotli
 override_dh_install:
-	cp tools/bro tools/$(BROTLI_CMD)
+	cp bin/bro bin/$(BROTLI_CMD)
 	dh_install
 
 override_dh_auto_clean:
-	rm -f tools/$(BROTLI_CMD)
+	rm -f bin/$(BROTLI_CMD)
+	dh_auto_clean
 
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
 	dh_auto_test
 	debian/smoke_test.sh
+	make test
 endif

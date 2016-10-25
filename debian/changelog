@@ -1,3 +1,10 @@
+brotli (0.5.2+dfsg-1) unstable; urgency=medium
+
+  * Imported Upstream version 0.5.2+dfsg (Closes: #842016)
+  * Update debian/rules to use new build system
+
+ -- Tomasz Buchert <tomasz@debian.org>  Tue, 25 Oct 2016 23:08:26 +0200
+
 brotli (0.4.0+dfsg-1) unstable; urgency=medium
 
   * Imported Upstream version 0.4.0+dfsg
