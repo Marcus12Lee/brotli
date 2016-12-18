@@ -1,15 +1,22 @@
 From: Tomasz Buchert <tomasz@debian.org>
-Date: Tue, 25 Oct 2016 22:57:51 +0200
-Subject: Add LDFLAGS to the final linking.
+Date: Sun, 18 Dec 2016 11:36:58 +0100
+Subject: Add LDFLAGS to the final linking and sort $(wildcard) output
 
 ---
- Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index c728037..23f309c 100644
+index c728037..8f347d6 100644
 --- a/Makefile
 +++ b/Makefile
+@@ -1,5 +1,5 @@
+ OS := $(shell uname)
+-LIBSOURCES = $(wildcard common/*.c) $(wildcard dec/*.c) $(wildcard enc/*.c)
++LIBSOURCES = $(sort $(wildcard common/*.c)) $(sort $(wildcard dec/*.c)) $(sort $(wildcard enc/*.c))
+ SOURCES = $(LIBSOURCES) tools/bro.c
+ BINDIR = bin
+ OBJDIR = $(BINDIR)/obj
 @@ -27,7 +27,7 @@ $(OBJECTS): $(DIRS)
          -c $(patsubst %.o,%.c,$(patsubst $(OBJDIR)/%,%,$@)) -o $@
  
