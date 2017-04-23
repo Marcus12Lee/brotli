@@ -2,7 +2,7 @@ Source: brotli
 Section: python
 Priority: optional
 Maintainer: Tomasz Buchert <tomasz@debian.org>
-Build-Depends: debhelper (>= 9),
+Build-Depends: debhelper (>= 10),
                dh-python,
                python,
                python-dev,

@@ -7,7 +7,7 @@ include /usr/share/dpkg/default.mk
 export PYBUILD_NAME = brotli
 
 %:
-	dh $@ --buildsystem=pybuild --with=python2 --with=python3
+	dh $@ --buildsystem=pybuild --with=python2,python3
 
 override_dh_auto_build:
 	dh_auto_build

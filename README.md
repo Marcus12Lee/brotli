@@ -1,3 +1,5 @@
+<p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
+
 ### Introduction
 
 Brotli is a generic-purpose lossless compression algorithm that compresses data
@@ -14,6 +16,49 @@ Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
 
 [![Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
+
+### Build instructions
+
+#### Make
+
+To build and run tests, simply do:
+
+    $ ./configure && make
+
+If you want to install brotli, use one of the more advanced build systems below.
+
+#### Bazel
+
+See [Bazel](http://www.bazel.build/)
+
+#### CMake
+
+The basic commands to build, test and install brotli are:
+
+    $ mkdir out && cd out && ../configure-cmake && make
+    $ make test
+    $ make install
+
+You can use other [CMake](https://cmake.org/) configuration. For example, to
+build static libraries and use a custom installation directory:
+
+    $ mkdir out-static && \
+      cd out-static && \
+      ../configure-cmake --disable-shared-libs --prefix='/my/prefix/dir/'
+    $ make install
+
+#### Premake5
+
+See [Premake5](https://premake.github.io/)
+
+#### Python
+
+To install the Python module from source, run the following:
+
+    $ python setup.py install
+
+See the [Python readme](python/README.md) for more details on testing
+and development.
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)

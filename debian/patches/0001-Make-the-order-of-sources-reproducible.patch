@@ -1,0 +1,19 @@
+From: Tomasz Buchert <tomasz@debian.org>
+Date: Sun, 23 Apr 2017 19:57:34 +0200
+Subject: Make the order of sources reproducible.
+
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 9dc5ecc..1c32e3b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,5 +1,5 @@
+ OS := $(shell uname)
+-LIBSOURCES = $(wildcard common/*.c) $(wildcard dec/*.c) $(wildcard enc/*.c)
++LIBSOURCES = $(sort $(wildcard common/*.c)) $(sort $(wildcard dec/*.c)) $(sort $(wildcard enc/*.c))
+ SOURCES = $(LIBSOURCES) tools/bro.c
+ BINDIR = bin
+ OBJDIR = $(BINDIR)/obj

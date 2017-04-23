@@ -119,6 +119,12 @@ matrix:
           - clang-3.5
 
     ###
+    ## PGI Community Edition on Linux
+    ###
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
+
+    ###
     ## Python build on Linux
     ###
     - os: linux
@@ -138,10 +144,10 @@ matrix:
     ## all since we already test all these versions of GCC on Linux.
     ## We'll just test 4.4 and the most recent version.
     ###
-    - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
     # - os: osx
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
+    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+    - os: osx
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
     # - os: osx
     #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     # - os: osx
@@ -153,17 +159,18 @@ matrix:
     # - os: osx
     #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.5 CXX_COMPILER=g++-4.5
     - os: osx
+      osx_image: beta-xcode6.2
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
 
     ###
     ## Python OS X builds
     ###
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12 C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4 C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2 C_COMPILER=gcc CXX_COMPILER=g++
 
     ###
     ## Sanitizers
@@ -216,6 +223,25 @@ matrix:
           - cmake
           - cmake-data
 
+    - os: linux
+      env: BUILD_SYSTEM=maven
+      language: java
+
+    - os: linux
+      dist: trusty
+      sudo: required
+      env: BUILD_SYSTEM=bazel
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - wget
+            - pkg-config
+
+    - os: osx
+      env: BUILD_SYSTEM=bazel
+
 before_install:
 ###
 ## If we use the matrix to set CC/CXX Travis, overwrites the values,
@@ -224,6 +250,7 @@ before_install:
 ###
 - if [ -n "${C_COMPILER}" ]; then export CC="${C_COMPILER}"; fi
 - if [ -n "${CXX_COMPILER}" ]; then export CXX="${CXX_COMPILER}"; fi
+- ./.travis.sh before_install
 install:
 - ./.travis.sh install
 script:
@@ -233,9 +260,10 @@ after_success:
 
 before_deploy:
 - if [ "${BUILD_SYSTEM}" = "python" ] && [ "${TRAVIS_OS_NAME}" = "osx" ]; then export WHEELS=$(ls ./dist/*.whl); fi
+- ./.travis.sh before_deploy
 
 deploy:
-  provider: releases
+- provider: releases
   api_key:
     secure: YcCBi6W/w4dtKCa59Wfm8L5lGWvK7KxaFNDr3yh1Hz5aStXXf758pEMHGewnlbfbwuj5a3SjBb1nLp1M69OQJfxm442uXBaBKo52PM9PPbD7NjvbNIso73pqcSODXQXKuZxDFpEhfuDTVq3hUkUqiwhChWhrFucJsSL51i7qSss=
   file: "${WHEELS}"
@@ -244,3 +272,11 @@ deploy:
     repo: "google/brotli"
     tags: true
     condition: "${BUILD_SYSTEM} = python && ${TRAVIS_OS_NAME} = osx"
+- provider: bintray
+  file: ".bintray.json"
+  user: "eustas"
+  key:
+    secure: "Kbam/lTAdz72fZivbs6riJT+Y4PbuKP7r6t5PAWxJxAAykjwnYTRe3zF472g9HCE14KYMsdB+KSYSgg6TGJnqGC9gL9xhhGU9U/WmA+vbMWS/MSnMWpK9IRpp77pM2i2NKZD4v33JuEwKFCBJP3Vj6QQ5Qd1NKdobuXJyznhgnw="
+  on:
+    condition: "${BUILD_SYSTEM} = bazel"
+  skip_cleanup: true

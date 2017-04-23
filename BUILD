@@ -7,6 +7,8 @@ package(
 
 licenses(["notice"])  # MIT
 
+exports_files(["LICENSE"])
+
 STRICT_C_OPTIONS = [
     "--pedantic-errors",
     "-Wall",
@@ -20,6 +22,11 @@ STRICT_C_OPTIONS = [
     "-Wshadow",
     "-Wsign-compare",
 ]
+
+filegroup(
+    name = "public_headers",
+    srcs = glob(["include/brotli/*.h"]),
+)
 
 filegroup(
     name = "common_headers",
@@ -52,30 +59,35 @@ filegroup(
 )
 
 cc_library(
-    name = "brotli_common",
+    name = "brotli",
+    hdrs = [":public_headers"],
+    copts = STRICT_C_OPTIONS,
+    includes = ["include"],
+)
+
+cc_library(
+    name = "brotlicommon",
     srcs = [":common_sources"],
     hdrs = [":common_headers"],
     copts = STRICT_C_OPTIONS,
+    deps = [":brotli"],
 )
 
 cc_library(
-    name = "brotli_dec",
+    name = "brotlidec",
     srcs = [":dec_sources"],
     hdrs = [":dec_headers"],
     copts = STRICT_C_OPTIONS,
-    deps = [
-        ":brotli_common",
-    ],
+    deps = [":brotlicommon"],
 )
 
 cc_library(
-    name = "brotli_enc",
+    name = "brotlienc",
     srcs = [":enc_sources"],
     hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
-    deps = [
-        ":brotli_common",
-    ],
+    linkopts = ["-lm"],
+    deps = [":brotlicommon"],
 )
 
 cc_binary(
@@ -84,7 +96,11 @@ cc_binary(
     copts = STRICT_C_OPTIONS,
     linkstatic = 1,
     deps = [
-        ":brotli_dec",
-        ":brotli_enc",
+        ":brotlidec",
+        ":brotlienc",
     ],
 )
+
+load("@io_bazel_rules_go//go:def.bzl", "go_prefix")
+
+go_prefix("github.com/google/brotli")
