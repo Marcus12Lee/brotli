@@ -1,0 +1,8 @@
+#!/bin/sh -eu
+
+for python2 in $(pyversions -r 2>/dev/null); do
+    ${python2} -c 'import brotli as b; assert b.decompress(b.compress(b"x")) == b"x"'
+    echo "${python2}: OK"
+done
+
+exit 0

@@ -1,0 +1,5 @@
+Tests: python2
+Depends: python-all, python-brotli
+
+Tests: python3
+Depends: python3-all, python3-brotli

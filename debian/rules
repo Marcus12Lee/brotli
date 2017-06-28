@@ -9,22 +9,24 @@ export PYBUILD_NAME = brotli
 %:
 	dh $@ --buildsystem=pybuild --with=python2,python3
 
+override_dh_auto_configure:
+	dh_auto_configure
+	dh_auto_configure --buildsystem=cmake
+
 override_dh_auto_build:
 	dh_auto_build
-	make bro
+	dh_auto_build --buildsystem=cmake
 
-BROTLI_CMD=brotli
-override_dh_install:
-	cp bin/bro bin/$(BROTLI_CMD)
-	dh_install
+override_dh_auto_install:
+	dh_auto_install
+	dh_auto_install --buildsystem=cmake
+	cp debian/tmp/usr/bin/bro debian/tmp/usr/bin/brotli
 
 override_dh_auto_clean:
-	rm -f bin/$(BROTLI_CMD)
+	rm -f debian/tmp/usr/bin/brotli
 	dh_auto_clean
+	dh_auto_clean --buildsystem=cmake
 
-ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
 	dh_auto_test
-	debian/smoke_test.sh
-	make test
-endif
+	dh_auto_test --buildsystem=cmake

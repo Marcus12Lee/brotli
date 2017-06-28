@@ -1,3 +1,21 @@
+brotli (0.6.0-2~exp0) experimental; urgency=medium
+
+  [Tomasz Buchert]
+  * d/gbp.conf: remove obsolete gbp.conf
+  * d/control: add Ondřej to Uploaders
+  * debian: provide shared libs pkgs
+  * d/control: bump Standards-Version to 4 (no changes needed)
+
+  [Ondřej Surý]
+  * Use SOVERSION in libbrotli package name and add symbols file
+  * Rewrite smoke_test.sh as autopkgtests
+  * Upload to experimental
+  * Add missing cmake to Build-Depends
+  * Fix libbrotli0.6.0.symbols to refer to correct package
+  * Add lintian override for amalgated libbrotli0.6.0 package not matching the libraries names
+
+ -- Ondřej Surý <ondrej@debian.org>  Wed, 28 Jun 2017 14:23:39 +0200
+
 brotli (0.6.0-1) unstable; urgency=medium
 
   * d/*: debhelper 10 and uscan 4

@@ -1,1 +1,1 @@
-bin/brotli usr/bin
+debian/tmp/usr/bin/brotli usr/bin
