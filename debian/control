@@ -60,7 +60,7 @@ Description: lossless compression algorithm and format (command line utility)
 Package: libbrotli-dev
 Section: libdevel
 Architecture: any
-Depends: libbrotli0.6.0 (= ${binary:Version}), ${misc:Depends}
+Depends: libbrotli1.0.0 (= ${binary:Version}), ${misc:Depends}
 Description: library implementing brotli encoder and decoder (development files)
  Brotli is a generic-purpose lossless compression algorithm
  that compresses data using a combination of a modern variant
@@ -71,7 +71,7 @@ Description: library implementing brotli encoder and decoder (development files)
  .
  This package installs development files.
 
-Package: libbrotli0.6.0
+Package: libbrotli1.0.0
 Section: libs
 Architecture: any
 Multi-Arch: same

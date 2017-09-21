@@ -20,10 +20,8 @@ override_dh_auto_build:
 override_dh_auto_install:
 	dh_auto_install
 	dh_auto_install --buildsystem=cmake
-	cp debian/tmp/usr/bin/bro debian/tmp/usr/bin/brotli
 
 override_dh_auto_clean:
-	rm -f debian/tmp/usr/bin/brotli
 	dh_auto_clean
 	dh_auto_clean --buildsystem=cmake
 

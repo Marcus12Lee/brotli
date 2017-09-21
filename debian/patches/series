@@ -1,2 +1,1 @@
-0001-Make-the-order-of-sources-reproducible.patch
-0002-Do-not-set-rpath-on-shared-libs.patch
+0001-Do-not-set-rpath.patch

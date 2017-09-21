@@ -1,0 +1,1 @@
+libbrotli1.0.0: package-name-doesnt-match-sonames libbrotlicommon1.0.0 libbrotlidec1.0.0 libbrotlienc1.0.0
