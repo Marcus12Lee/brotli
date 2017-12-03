@@ -23,6 +23,24 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msvc",
+    values = {"cpu": "x64_windows_msvc"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msys",
+    values = {"cpu": "x64_windows_msys"},
+    visibility = ["//visibility:public"],
+)
+
 genrule(
     name = "copy_link_jni_header",
     srcs = ["@openjdk_linux//:jni_h"],
@@ -35,6 +53,9 @@ genrule(
     srcs = select({
         ":darwin": ["@openjdk_macos//:jni_md_h"],
         ":darwin_x86_64": ["@openjdk_macos//:jni_md_h"],
+        ":windows_msys": ["@openjdk_win//:jni_md_h"],
+        ":windows_msvc": ["@openjdk_win//:jni_md_h"],
+        ":windows": ["@openjdk_win//:jni_md_h"],
         "//conditions:default": ["@openjdk_linux//:jni_md_h"],
     }),
     outs = ["jni/jni_md.h"],
@@ -147,45 +168,41 @@ cc_binary(
 ########################################################
 # WARNING: do not (transitively) depend on this target!
 ########################################################
-cc_library(
-    name = "jni",
+cc_binary(
+    name = "brotli_jni.dll",
     srcs = [
+        ":common_headers",
         ":common_sources",
+        ":dec_headers",
         ":dec_sources",
+        ":enc_headers",
         ":enc_sources",
         "//java/org/brotli/wrapper/common:jni_src",
         "//java/org/brotli/wrapper/dec:jni_src",
         "//java/org/brotli/wrapper/enc:jni_src",
-    ],
-    hdrs = [
-        ":common_headers",
-        ":dec_headers",
-        ":enc_headers",
     ],
     deps = [
         ":brotli_inc",
         ":jni_inc",
     ],
-    alwayslink = 1,
+    linkshared = 1,
 )
 
 ########################################################
 # WARNING: do not (transitively) depend on this target!
 ########################################################
-cc_library(
-    name = "jni_no_dictionary_data",
+cc_binary(
+    name = "brotli_jni_no_dictionary_data.dll",
     srcs = [
+        ":common_headers",
         ":common_sources",
+        ":dec_headers",
         ":dec_sources",
+        ":enc_headers",
         ":enc_sources",
         "//java/org/brotli/wrapper/common:jni_src",
         "//java/org/brotli/wrapper/dec:jni_src",
         "//java/org/brotli/wrapper/enc:jni_src",
-    ],
-    hdrs = [
-        ":common_headers",
-        ":dec_headers",
-        ":enc_headers",
     ],
     defines = [
         "BROTLI_EXTERNAL_DICTIONARY_DATA=",
@@ -194,7 +211,7 @@ cc_library(
         ":brotli_inc",
         ":jni_inc",
     ],
-    alwayslink = 1,
+    linkshared = 1,
 )
 
 filegroup(

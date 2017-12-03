@@ -11,45 +11,74 @@ maven_jar(
 git_repository(
     name = "io_bazel_rules_go",
     remote = "https://github.com/bazelbuild/rules_go.git",
-    tag = "0.4.4",
+    tag = "0.5.5",
 )
 
 http_archive(
     name = "io_bazel_rules_closure",
-    strip_prefix = "rules_closure-0.4.1",
-    sha256 = "ba5e2e10cdc4027702f96e9bdc536c6595decafa94847d08ae28c6cb48225124",
-    url = "http://mirror.bazel.build/github.com/bazelbuild/rules_closure/archive/0.4.1.tar.gz",
+    strip_prefix = "rules_closure-0.4.2",
+    sha256 = "25f5399f18d8bf9ce435f85c6bbf671ec4820bc4396b3022cc5dc4bc66303609",
+    urls = [
+        "http://mirror.bazel.build/github.com/bazelbuild/rules_closure/archive/0.4.2.tar.gz",
+        "https://github.com/bazelbuild/rules_closure/archive/0.4.2.tar.gz",
+    ],
 )
 
 new_http_archive(
     name = "openjdk_linux",
-    url = "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.20.0.5-jdk8.0.121/zulu8.20.0.5-jdk8.0.121-linux_x64.tar.gz",
-    sha256 = "7fdfb17d890406470b2303d749d3138e7f353749e67a0a22f542e1ab3e482745",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+    ],
+    sha256 = "7e6284739c0e5b7142bc7a9adc61ced70dc5bb26b130b582b18e809013bcb251",
     build_file_content = """
 package(
     default_visibility = ["//visibility:public"],
 )
 filegroup(
     name = "jni_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-linux_x64/include/jni.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/jni.h"],
 )
 filegroup(
     name = "jni_md_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-linux_x64/include/linux/jni_md.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/linux/jni_md.h"],
 )""",
 )
 
 new_http_archive(
     name = "openjdk_macos",
-    url = "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.20.0.5-jdk8.0.121/zulu8.20.0.5-jdk8.0.121-macosx_x64.zip",
-    sha256 = "2a58bd1d9b0cbf0b3d8d1bcdd117c407e3d5a0ec01e2f53565c9bec5cf9ea78b",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+    ],
+    sha256 = "ff533364c9cbd3b271ab5328efe28e2dd6d7bae5b630098a5683f742ecf0709d",
     build_file_content = """
 package(
     default_visibility = ["//visibility:public"],
 )
 filegroup(
     name = "jni_md_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-macosx_x64/include/darwin/jni_md.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-macosx_x64/include/darwin/jni_md.h"],
+)""",
+)
+
+new_http_archive(
+    name = "openjdk_win",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+    ],
+    sha256 = "f1d9d3341ef7c8c9baff3597953e99a6a7c64f8608ee62c03fdd7574b7655c02",
+    build_file_content = """
+package(
+    default_visibility = ["//visibility:public"],
+)
+filegroup(
+    name = "jni_md_h",
+    srcs = ["zulu8.23.0.3-jdk8.0.144-win_x64/include/win32/jni_md.h"],
 )""",
 )
 

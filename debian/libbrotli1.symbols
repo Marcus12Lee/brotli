@@ -1,7 +1,7 @@
-libbrotlicommon.so.1.0.0 libbrotli1.0.0 #MINVER#
- BrotliGetDictionary@Base 0.6.0
+libbrotlicommon.so.1 libbrotli1 #MINVER#
+ BrotliGetDictionary@Base 1.0.2
  BrotliSetDictionaryData@Base 1.0.0
-libbrotlidec.so.1.0.0 libbrotli1.0.0 #MINVER#
+libbrotlidec.so.1 libbrotli1 #MINVER#
  BrotliDecoderCreateInstance@Base 0.6.0
  BrotliDecoderDecompress@Base 0.6.0
  BrotliDecoderDecompressStream@Base 0.6.0
@@ -14,7 +14,7 @@ libbrotlidec.so.1.0.0 libbrotli1.0.0 #MINVER#
  BrotliDecoderSetParameter@Base 1.0.0
  BrotliDecoderTakeOutput@Base 0.6.0
  BrotliDecoderVersion@Base 0.6.0
-libbrotlienc.so.1.0.0 libbrotli1.0.0 #MINVER#
+libbrotlienc.so.1 libbrotli1 #MINVER#
  BrotliEncoderCompress@Base 0.6.0
  BrotliEncoderCompressStream@Base 0.6.0
  BrotliEncoderCreateInstance@Base 0.6.0

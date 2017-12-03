@@ -1,13 +1,13 @@
 From: Tomasz Buchert <tomasz@debian.org>
-Date: Fri, 22 Sep 2017 00:32:36 +0200
-Subject: Do not set rpath.
+Date: Sun, 3 Dec 2017 13:01:21 +0100
+Subject: Do not set rpath
 
 ---
  CMakeLists.txt | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index fcd0e96..0c64769 100644
+index ac55f6b..fe06755 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -26,13 +26,13 @@ include(GNUInstallDirs)
