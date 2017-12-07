@@ -1,3 +1,9 @@
+brotli (1.0.2-2) unstable; urgency=medium
+
+  * Upload to unstable
+
+ -- Tomasz Buchert <tomasz@debian.org>  Thu, 07 Dec 2017 09:51:13 +0100
+
 brotli (1.0.2-1~exp0) experimental; urgency=medium
 
   * New upstream version 1.0.2
