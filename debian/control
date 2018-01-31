@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Tomasz Buchert <tomasz@debian.org>
 Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends: cmake,
-               debhelper (>= 10),
+               debhelper (>= 10.3),
                dh-python,
                python,
                python-dev,

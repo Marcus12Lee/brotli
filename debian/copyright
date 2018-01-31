@@ -6,12 +6,6 @@ Files: *
 Copyright: 2009, 2010, 2013-2015 by the Brotli Authors
 License: MIT
 
-Files: appveyor/*
-Copyright: 2015 Olivier Grisel
-	   2015 Kyle Kastner
-License: public-domain
- The "license" is CC0 1.0 Universal (http://creativecommons.org/publicdomain/zero/1.0/).
-
 Files: debian/*
 Copyright: 2015 Tomasz Buchert <tomasz@debian.org>
 License: MIT
