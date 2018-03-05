@@ -1,6 +1,8 @@
 libbrotlicommon.so.1 libbrotli1 #MINVER#
  BrotliGetDictionary@Base 1.0.2
+ BrotliGetTransforms@Base 1.0.3
  BrotliSetDictionaryData@Base 1.0.0
+ BrotliTransformDictionaryWord@Base 1.0.3
 libbrotlidec.so.1 libbrotli1 #MINVER#
  BrotliDecoderCreateInstance@Base 0.6.0
  BrotliDecoderDecompress@Base 0.6.0
