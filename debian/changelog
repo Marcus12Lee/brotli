@@ -1,3 +1,9 @@
+brotli (1.0.3-1ubuntu1) bionic; urgency=medium
+
+  * Apply pull requests #651, #656 to fix alignment issues on armhf.
+
+ -- Matthias Klose <doko@ubuntu.com>  Fri, 06 Apr 2018 14:42:31 +0200
+
 brotli (1.0.3-1) unstable; urgency=medium
 
   * New upstream version 1.0.3

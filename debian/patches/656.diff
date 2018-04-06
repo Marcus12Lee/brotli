@@ -1,0 +1,909 @@
+diff --git a/BUILD b/BUILD
+index 72781d74..6265b718 100644
+--- a/BUILD
++++ b/BUILD
+@@ -83,7 +83,6 @@ STRICT_C_OPTIONS = [
+     "-Wmissing-declarations",
+     "-Wmissing-prototypes",
+     "-Wno-strict-aliasing",
+-    "-Wno-implicit-fallthrough",
+     "-Wshadow",
+     "-Wsign-compare",
+ ]
+diff --git a/c/common/constants.h b/c/common/constants.h
+index 26edcd59..d1b88d12 100644
+--- a/c/common/constants.h
++++ b/c/common/constants.h
+@@ -38,7 +38,7 @@
+ #define BROTLI_MAX_NPOSTFIX 3
+ #define BROTLI_MAX_NDIRECT 120
+ #define BROTLI_MAX_DISTANCE_BITS 24U
+-#define BROTLI_DISTANCE_ALPHABET_SIZE(NDIRECT, NPOSTFIX, MAXNBITS) ( \
++#define BROTLI_DISTANCE_ALPHABET_SIZE(NPOSTFIX, NDIRECT, MAXNBITS) ( \
+     BROTLI_NUM_DISTANCE_SHORT_CODES + (NDIRECT) +                    \
+     ((MAXNBITS) << ((NPOSTFIX) + 1)))
+ /* BROTLI_NUM_DISTANCE_SYMBOLS == 1128 */
+diff --git a/c/common/platform.h b/c/common/platform.h
+index d6fd3ee9..8d142909 100755
+--- a/c/common/platform.h
++++ b/c/common/platform.h
+@@ -99,17 +99,15 @@
+ #define BROTLI_NOINLINE
+ #endif
+ 
+-#if defined(__arm__) || defined(__thumb__) || \
+-    defined(_M_ARM) || defined(_M_ARMT) || defined(__ARM64_ARCH_8__)
+-#define BROTLI_TARGET_ARM
+ #if (defined(__ARM_ARCH) && (__ARM_ARCH == 7)) || \
+     (defined(M_ARM) && (M_ARM == 7))
+ #define BROTLI_TARGET_ARMV7
+ #endif  /* ARMv7 */
+-#if defined(__aarch64__) || defined(__ARM64_ARCH_8__)
++
++#if (defined(__ARM_ARCH) && (__ARM_ARCH == 8)) || \
++    defined(__aarch64__) || defined(__ARM64_ARCH_8__)
+ #define BROTLI_TARGET_ARMV8
+ #endif  /* ARMv8 */
+-#endif  /* ARM */
+ 
+ #if defined(__i386) || defined(_M_IX86)
+ #define BROTLI_TARGET_X86
+@@ -213,12 +211,25 @@ static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
+ static BROTLI_INLINE uint32_t BrotliUnalignedRead32(const void* p) {
+   return *(const uint32_t*)p;
+ }
++#if (BROTLI_64_BITS)
+ static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
+   return *(const uint64_t*)p;
+ }
+ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
+   *(uint64_t*)p = v;
+ }
++#else  /* BROTLI_64_BITS */
++/* Avoid emitting LDRD / STRD, which require properly aligned address. */
++static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
++  const uint32_t* dwords = (const uint32_t*)p;
++  return dwords[0] | ((uint64_t)dwords[1] << 32);
++}
++static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
++  uint32_t* dwords = (uint32_t *)p;
++  dwords[0] = (uint32_t)v;
++  dwords[1] = (uint32_t)(v >> 32);
++}
++#endif  /* BROTLI_64_BITS */
+ #endif  /* BROTLI_ALIGNED_READ */
+ 
+ #if BROTLI_LITTLE_ENDIAN
+@@ -328,7 +339,7 @@ To apply compiler hint, enclose the branching condition into macros, like this:
+ #define BROTLI_IS_CONSTANT(x) (!!0)
+ #endif
+ 
+-#if defined(BROTLI_TARGET_ARM)
++#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
+ #define BROTLI_HAS_UBFX (!!1)
+ #else
+ #define BROTLI_HAS_UBFX (!!0)
+@@ -362,7 +373,7 @@ static BROTLI_INLINE brotli_reg_t BrotliRBit(brotli_reg_t input) {
+   return output;
+ }
+ #define BROTLI_RBIT(x) BrotliRBit(x)
+-#endif  /* armv7 */
++#endif  /* armv7 / armv8 */
+ #endif  /* gcc || clang */
+ #if !defined(BROTLI_RBIT)
+ static BROTLI_INLINE void BrotliRBit(void) { /* Should break build if used. */ }
+diff --git a/c/common/version.h b/c/common/version.h
+index 435371c2..54470f60 100644
+--- a/c/common/version.h
++++ b/c/common/version.h
+@@ -14,13 +14,13 @@
+    BrotliEncoderVersion methods. */
+ 
+ /* Semantic version, calculated as (MAJOR << 24) | (MINOR << 12) | PATCH */
+-#define BROTLI_VERSION 0x1000003
++#define BROTLI_VERSION 0x1000004
+ 
+ /* This macro is used by build system to produce Libtool-friendly soname. See
+    https://www.gnu.org/software/libtool/manual/html_node/Libtool-versioning.html
+  */
+ 
+ /* ABI version, calculated as (CURRENT << 24) | (REVISION << 12) | AGE */
+-#define BROTLI_ABI_VERSION 0x1003000
++#define BROTLI_ABI_VERSION 0x1004000
+ 
+ #endif  /* BROTLI_COMMON_VERSION_H_ */
+diff --git a/c/dec/decode.c b/c/dec/decode.c
+index 630edeb7..86dcd5fb 100644
+--- a/c/dec/decode.c
++++ b/c/dec/decode.c
+@@ -189,7 +189,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
+         *value = 0;
+         return BROTLI_DECODER_SUCCESS;
+       }
+-      /* No break, transit to the next state. */
++    /* Fall through. */
+ 
+     case BROTLI_STATE_DECODE_UINT8_SHORT:
+       if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, 3, &bits))) {
+@@ -203,7 +203,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
+       }
+       /* Use output value as a temporary storage. It MUST be persisted. */
+       *value = bits;
+-      /* No break, transit to the next state. */
++    /* Fall through. */
+ 
+     case BROTLI_STATE_DECODE_UINT8_LONG:
+       if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, *value, &bits))) {
+@@ -240,7 +240,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+           break;
+         }
+         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_EMPTY;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_EMPTY:
+         if (!BrotliSafeReadBits(br, 1, &bits)) {
+@@ -251,7 +251,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+           return BROTLI_DECODER_SUCCESS;
+         }
+         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NIBBLES;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_NIBBLES:
+         if (!BrotliSafeReadBits(br, 2, &bits)) {
+@@ -265,7 +265,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+           break;
+         }
+         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_SIZE;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_SIZE:
+         i = s->loop_counter;
+@@ -281,7 +281,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+         }
+         s->substate_metablock_header =
+             BROTLI_STATE_METABLOCK_HEADER_UNCOMPRESSED;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_UNCOMPRESSED:
+         if (!s->is_last_metablock) {
+@@ -302,7 +302,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+           return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_RESERVED);
+         }
+         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_BYTES;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_BYTES:
+         if (!BrotliSafeReadBits(br, 2, &bits)) {
+@@ -314,7 +314,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
+         }
+         s->size_nibbles = (uint8_t)bits;
+         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_METADATA;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER_METADATA:
+         i = s->loop_counter;
+@@ -756,7 +756,7 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size,
+           s->substate_huffman = BROTLI_STATE_HUFFMAN_COMPLEX;
+           continue;
+         }
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_SIMPLE_SIZE:
+         /* Read symbols, codes & code lengths directly. */
+@@ -765,7 +765,7 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size,
+           return BROTLI_DECODER_NEEDS_MORE_INPUT;
+         }
+         s->sub_loop_counter = 0;
+-        /* No break, transit to the next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_SIMPLE_READ: {
+         BrotliDecoderErrorCode result =
+@@ -773,8 +773,8 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size,
+         if (result != BROTLI_DECODER_SUCCESS) {
+           return result;
+         }
+-        /* No break, transit to the next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_SIMPLE_BUILD: {
+         uint32_t table_size;
+@@ -818,8 +818,8 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size,
+         s->repeat_code_len = 0;
+         s->space = 32768;
+         s->substate_huffman = BROTLI_STATE_HUFFMAN_LENGTH_SYMBOLS;
+-        /* No break, transit to the next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_LENGTH_SYMBOLS: {
+         uint32_t table_size;
+@@ -996,7 +996,7 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
+         return BROTLI_DECODER_SUCCESS;
+       }
+       s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_READ_PREFIX;
+-      /* No break, continue to next state. */
++    /* Fall through. */
+ 
+     case BROTLI_STATE_CONTEXT_MAP_READ_PREFIX: {
+       uint32_t bits;
+@@ -1014,8 +1014,8 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
+       }
+       BROTLI_LOG_UINT(s->max_run_length_prefix);
+       s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_HUFFMAN;
+-      /* No break, continue to next state. */
+     }
++    /* Fall through. */
+ 
+     case BROTLI_STATE_CONTEXT_MAP_HUFFMAN: {
+       uint32_t alphabet_size = *num_htrees + s->max_run_length_prefix;
+@@ -1024,8 +1024,8 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
+       if (result != BROTLI_DECODER_SUCCESS) return result;
+       s->code = 0xFFFF;
+       s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_DECODE;
+-      /* No break, continue to next state. */
+     }
++    /* Fall through. */
+ 
+     case BROTLI_STATE_CONTEXT_MAP_DECODE: {
+       uint32_t context_index = s->context_index;
+@@ -1073,8 +1073,8 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
+           } while (--reps);
+         }
+       }
+-      /* No break, continue to next state. */
+     }
++    /* Fall through. */
+ 
+     case BROTLI_STATE_CONTEXT_MAP_TRANSFORM: {
+       uint32_t bits;
+@@ -1362,8 +1362,8 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
+           return BROTLI_DECODER_NEEDS_MORE_INPUT;
+         }
+         s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE;
+-        /* No break, continue to next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_UNCOMPRESSED_WRITE: {
+         BrotliDecoderErrorCode result;
+@@ -2102,7 +2102,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+           break;
+         }
+         s->state = BROTLI_STATE_INITIALIZE;
+-        /* No break, continue to next state */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_INITIALIZE:
+         BROTLI_LOG_UINT(s->window_bits);
+@@ -2121,13 +2121,13 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+             s->block_type_trees + 3 * BROTLI_HUFFMAN_MAX_SIZE_258;
+ 
+         s->state = BROTLI_STATE_METABLOCK_BEGIN;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_BEGIN:
+         BrotliDecoderStateMetablockBegin(s);
+         BROTLI_LOG_UINT(s->pos);
+         s->state = BROTLI_STATE_METABLOCK_HEADER;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_METABLOCK_HEADER:
+         result = DecodeMetaBlockLength(s, br);  /* Reads 2 - 31 bits. */
+@@ -2202,7 +2202,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+           break;
+         }
+         s->state = BROTLI_STATE_HUFFMAN_CODE_1;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_CODE_1: {
+         uint32_t alphabet_size = s->num_block_types[s->loop_counter] + 2;
+@@ -2211,8 +2211,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+             &s->block_type_trees[tree_offset], NULL, s);
+         if (result != BROTLI_DECODER_SUCCESS) break;
+         s->state = BROTLI_STATE_HUFFMAN_CODE_2;
+-        /* No break, continue to next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_CODE_2: {
+         uint32_t alphabet_size = BROTLI_NUM_BLOCK_LEN_SYMBOLS;
+@@ -2221,8 +2221,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+             &s->block_len_trees[tree_offset], NULL, s);
+         if (result != BROTLI_DECODER_SUCCESS) break;
+         s->state = BROTLI_STATE_HUFFMAN_CODE_3;
+-        /* No break, continue to next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_HUFFMAN_CODE_3: {
+         int tree_offset = s->loop_counter * BROTLI_HUFFMAN_MAX_SIZE_26;
+@@ -2258,8 +2258,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+         }
+         s->loop_counter = 0;
+         s->state = BROTLI_STATE_CONTEXT_MODES;
+-        /* No break, continue to next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_CONTEXT_MODES:
+         result = ReadContextModes(s);
+@@ -2267,7 +2267,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+           break;
+         }
+         s->state = BROTLI_STATE_CONTEXT_MAP_1;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_CONTEXT_MAP_1:
+         result = DecodeContextMap(
+@@ -2278,13 +2278,13 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+         }
+         DetectTrivialLiteralBlockTypes(s);
+         s->state = BROTLI_STATE_CONTEXT_MAP_2;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_CONTEXT_MAP_2: {
+         uint32_t num_direct_codes =
+             s->num_direct_distance_codes - BROTLI_NUM_DISTANCE_SHORT_CODES;
+         uint32_t num_distance_codes = BROTLI_DISTANCE_ALPHABET_SIZE(
+-            num_direct_codes, s->distance_postfix_bits,
++            s->distance_postfix_bits, num_direct_codes,
+             (s->large_window ? BROTLI_LARGE_MAX_DISTANCE_BITS :
+                                BROTLI_MAX_DISTANCE_BITS));
+         uint32_t max_distance_symbol = (s->large_window ?
+@@ -2313,8 +2313,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+         }
+         s->loop_counter = 0;
+         s->state = BROTLI_STATE_TREE_GROUP;
+-        /* No break, continue to next state. */
+       }
++      /* Fall through. */
+ 
+       case BROTLI_STATE_TREE_GROUP: {
+         HuffmanTreeGroup* hgroup = NULL;
+@@ -2342,8 +2342,11 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+       }
+ 
+       case BROTLI_STATE_COMMAND_BEGIN:
++      /* Fall through. */
+       case BROTLI_STATE_COMMAND_INNER:
++      /* Fall through. */
+       case BROTLI_STATE_COMMAND_POST_DECODE_LITERALS:
++      /* Fall through. */
+       case BROTLI_STATE_COMMAND_POST_WRAP_COPY:
+         result = ProcessCommands(s);
+         if (result == BROTLI_DECODER_NEEDS_MORE_INPUT) {
+@@ -2352,7 +2355,9 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+         break;
+ 
+       case BROTLI_STATE_COMMAND_INNER_WRITE:
++      /* Fall through. */
+       case BROTLI_STATE_COMMAND_POST_WRITE_1:
++      /* Fall through. */
+       case BROTLI_STATE_COMMAND_POST_WRITE_2:
+         result = WriteRingBuffer(
+             s, available_out, next_out, total_out, BROTLI_FALSE);
+@@ -2406,7 +2411,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
+           *next_in = br->next_in;
+         }
+         s->state = BROTLI_STATE_DONE;
+-        /* No break, continue to next state. */
++      /* Fall through. */
+ 
+       case BROTLI_STATE_DONE:
+         if (s->ringbuffer != 0) {
+diff --git a/c/enc/encode.c b/c/enc/encode.c
+index 623b88fe..4bf0cb4d 100644
+--- a/c/enc/encode.c
++++ b/c/enc/encode.c
+@@ -553,6 +553,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
+   uint16_t last_bytes;
+   uint8_t last_bytes_bits;
+   ContextLut literal_context_lut = BROTLI_CONTEXT_LUT(literal_context_mode);
++  BrotliEncoderParams block_params = *params;
+ 
+   if (bytes == 0) {
+     /* Write the ISLAST and ISEMPTY bits. */
+@@ -604,7 +605,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
+           literal_context_map, commands, num_commands, &mb);
+       if (BROTLI_IS_OOM(m)) return;
+     } else {
+-      BrotliBuildMetaBlock(m, data, wrapped_last_flush_pos, mask, params,
++      BrotliBuildMetaBlock(m, data, wrapped_last_flush_pos, mask, &block_params,
+                            prev_byte, prev_byte2,
+                            commands, num_commands,
+                            literal_context_mode,
+@@ -612,9 +613,10 @@ static void WriteMetaBlockInternal(MemoryManager* m,
+       if (BROTLI_IS_OOM(m)) return;
+     }
+     if (params->quality >= MIN_QUALITY_FOR_OPTIMIZE_HISTOGRAMS) {
+-      /* The number of distance symbols effectively used by
+-         "Large Window Brotli" (32-bit). */
+-      uint32_t num_effective_dist_codes = params->dist.alphabet_size;
++      /* The number of distance symbols effectively used for distance
++         histograms. It might be less than distance alphabet size
++         for "Large Window Brotli" (32-bit). */
++      uint32_t num_effective_dist_codes = block_params.dist.alphabet_size;
+       if (num_effective_dist_codes > BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS) {
+         num_effective_dist_codes = BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS;
+       }
+@@ -623,7 +625,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
+     BrotliStoreMetaBlock(m, data, wrapped_last_flush_pos, bytes, mask,
+                          prev_byte, prev_byte2,
+                          is_last,
+-                         params,
++                         &block_params,
+                          literal_context_mode,
+                          commands, num_commands,
+                          &mb,
+@@ -646,8 +648,6 @@ static void WriteMetaBlockInternal(MemoryManager* m,
+ static void ChooseDistanceParams(BrotliEncoderParams* params) {
+   uint32_t distance_postfix_bits = 0;
+   uint32_t num_direct_distance_codes = 0;
+-  uint32_t alphabet_size;
+-  size_t max_distance = BROTLI_MAX_DISTANCE;
+ 
+   if (params->quality >= MIN_QUALITY_FOR_NONZERO_DISTANCE_PARAMS) {
+     uint32_t ndirect_msb;
+@@ -665,32 +665,10 @@ static void ChooseDistanceParams(BrotliEncoderParams* params) {
+       distance_postfix_bits = 0;
+       num_direct_distance_codes = 0;
+     }
+-    max_distance = num_direct_distance_codes +
+-        (1U << (BROTLI_MAX_DISTANCE_BITS + distance_postfix_bits + 2)) -
+-        (1U << (distance_postfix_bits + 2));
+-  }
+-
+-  alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
+-      num_direct_distance_codes, distance_postfix_bits,
+-      BROTLI_MAX_DISTANCE_BITS);
+-  if (params->large_window) {
+-    /* The maximum distance is set so that no distance symbol used can encode
+-       a distance larger than BROTLI_MAX_ALLOWED_DISTANCE with all
+-       its extra bits set. */
+-    const uint32_t bound_ndirect[BROTLI_MAX_NDIRECT + 1] = {1, 6, 16, 36};
+-    max_distance = (1U << 31) - 32;
+-    if (num_direct_distance_codes >= bound_ndirect[distance_postfix_bits]) {
+-      max_distance = (3U << 29) - 4;
+-    }
+-    alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
+-        num_direct_distance_codes, distance_postfix_bits,
+-        BROTLI_LARGE_MAX_DISTANCE_BITS);
+   }
+ 
+-  params->dist.distance_postfix_bits = distance_postfix_bits;
+-  params->dist.num_direct_distance_codes = num_direct_distance_codes;
+-  params->dist.alphabet_size = alphabet_size;
+-  params->dist.max_distance = max_distance;
++  BrotliInitDistanceParams(
++      params, distance_postfix_bits, num_direct_distance_codes);
+ }
+ 
+ static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s) {
+@@ -1331,20 +1309,25 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
+                                        &storage_ix, storage);
+     } else {
+       MetaBlockSplit mb;
+-      /* The number of distance symbols effectively used by
+-         "Large Window Brotli" (32-bit). */
+-      uint32_t num_effective_dist_codes = params.dist.alphabet_size;
+-      if (num_effective_dist_codes > BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS) {
+-        num_effective_dist_codes = BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS;
+-      }
++      BrotliEncoderParams block_params = params;
+       InitMetaBlockSplit(&mb);
+-      BrotliBuildMetaBlock(m, input_buffer, metablock_start, mask, &params,
++      BrotliBuildMetaBlock(m, input_buffer, metablock_start, mask,
++                           &block_params,
+                            prev_byte, prev_byte2,
+                            commands, num_commands,
+                            literal_context_mode,
+                            &mb);
+       if (BROTLI_IS_OOM(m)) goto oom;
+-      BrotliOptimizeHistograms(num_effective_dist_codes, &mb);
++      {
++        /* The number of distance symbols effectively used for distance
++           histograms. It might be less than distance alphabet size
++           for "Large Window Brotli" (32-bit). */
++        uint32_t num_effective_dist_codes = block_params.dist.alphabet_size;
++        if (num_effective_dist_codes > BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS) {
++          num_effective_dist_codes = BROTLI_NUM_HISTOGRAM_DISTANCE_SYMBOLS;
++        }
++        BrotliOptimizeHistograms(num_effective_dist_codes, &mb);
++      }
+       storage = BROTLI_ALLOC(m, uint8_t, 2 * metablock_size + 503);
+       if (BROTLI_IS_OOM(m)) goto oom;
+       storage[0] = (uint8_t)last_bytes;
+@@ -1352,7 +1335,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
+       BrotliStoreMetaBlock(m, input_buffer, metablock_start, metablock_size,
+                            mask, prev_byte, prev_byte2,
+                            is_last,
+-                           &params,
++                           &block_params,
+                            literal_context_mode,
+                            commands, num_commands,
+                            &mb,
+diff --git a/c/enc/metablock.c b/c/enc/metablock.c
+index 62192929..641f95e5 100644
+--- a/c/enc/metablock.c
++++ b/c/enc/metablock.c
+@@ -25,14 +25,116 @@
+ extern "C" {
+ #endif
+ 
++void BrotliInitDistanceParams(BrotliEncoderParams* params,
++    uint32_t npostfix, uint32_t ndirect) {
++  BrotliDistanceParams* dist_params = &params->dist;
++  uint32_t alphabet_size, max_distance;
++
++  dist_params->distance_postfix_bits = npostfix;
++  dist_params->num_direct_distance_codes = ndirect;
++
++  alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
++      npostfix, ndirect, BROTLI_MAX_DISTANCE_BITS);
++  max_distance = ndirect + (1U << (BROTLI_MAX_DISTANCE_BITS + npostfix + 2)) -
++      (1U << (npostfix + 2));
++
++  if (params->large_window) {
++    static const uint32_t bound[BROTLI_MAX_NPOSTFIX + 1] = {0, 4, 12, 28};
++    uint32_t postfix = 1U << npostfix;
++    alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
++        npostfix, ndirect, BROTLI_LARGE_MAX_DISTANCE_BITS);
++    /* The maximum distance is set so that no distance symbol used can encode
++       a distance larger than BROTLI_MAX_ALLOWED_DISTANCE with all
++       its extra bits set. */
++    if (ndirect < bound[npostfix]) {
++      max_distance = BROTLI_MAX_ALLOWED_DISTANCE - (bound[npostfix] - ndirect);
++    } else if (ndirect >= bound[npostfix] + postfix) {
++      max_distance = (3U << 29) - 4 + (ndirect - bound[npostfix]);
++    } else {
++      max_distance = BROTLI_MAX_ALLOWED_DISTANCE;
++    }
++  }
++
++  dist_params->alphabet_size = alphabet_size;
++  dist_params->max_distance = max_distance;
++}
++
++static void RecomputeDistancePrefixes(Command* cmds,
++                                      size_t num_commands,
++                                      const BrotliDistanceParams* orig_params,
++                                      const BrotliDistanceParams* new_params) {
++  size_t i;
++
++  if (orig_params->distance_postfix_bits == new_params->distance_postfix_bits &&
++      orig_params->num_direct_distance_codes ==
++      new_params->num_direct_distance_codes) {
++    return;
++  }
++
++  for (i = 0; i < num_commands; ++i) {
++    Command* cmd = &cmds[i];
++    if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
++      PrefixEncodeCopyDistance(CommandRestoreDistanceCode(cmd, orig_params),
++                               new_params->num_direct_distance_codes,
++                               new_params->distance_postfix_bits,
++                               &cmd->dist_prefix_,
++                               &cmd->dist_extra_);
++    }
++  }
++}
++
++static BROTLI_BOOL ComputeDistanceCost(const Command* cmds,
++                                       size_t num_commands,
++                                       const BrotliDistanceParams* orig_params,
++                                       const BrotliDistanceParams* new_params,
++                                       double* cost) {
++  size_t i;
++  BROTLI_BOOL equal_params = BROTLI_FALSE;
++  uint16_t dist_prefix;
++  uint32_t dist_extra;
++  double extra_bits = 0.0;
++  HistogramDistance histo;
++  HistogramClearDistance(&histo);
++
++  if (orig_params->distance_postfix_bits == new_params->distance_postfix_bits &&
++      orig_params->num_direct_distance_codes ==
++      new_params->num_direct_distance_codes) {
++    equal_params = BROTLI_TRUE;
++  }
++
++  for (i = 0; i < num_commands; i++) {
++    const Command* cmd = &cmds[i];
++    if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
++      if (equal_params) {
++        dist_prefix = cmd->dist_prefix_;
++      } else {
++        uint32_t distance = CommandRestoreDistanceCode(cmd, orig_params);
++        if (distance > new_params->max_distance) {
++          return BROTLI_FALSE;
++        }
++        PrefixEncodeCopyDistance(distance,
++                                 new_params->num_direct_distance_codes,
++                                 new_params->distance_postfix_bits,
++                                 &dist_prefix,
++                                 &dist_extra);
++      }
++      HistogramAddDistance(&histo, dist_prefix & 0x3FF);
++      extra_bits += dist_prefix >> 10;
++    }
++  }
++
++  *cost = BrotliPopulationCostDistance(&histo) + extra_bits;
++  return BROTLI_TRUE;
++}
++
+ void BrotliBuildMetaBlock(MemoryManager* m,
+                           const uint8_t* ringbuffer,
+                           const size_t pos,
+                           const size_t mask,
+-                          const BrotliEncoderParams* params,
++                          BrotliEncoderParams* params,
+                           uint8_t prev_byte,
+                           uint8_t prev_byte2,
+-                          const Command* cmds,
++                          Command* cmds,
+                           size_t num_commands,
+                           ContextType literal_context_mode,
+                           MetaBlockSplit* mb) {
+@@ -45,6 +147,46 @@ void BrotliBuildMetaBlock(MemoryManager* m,
+   size_t distance_histograms_size;
+   size_t i;
+   size_t literal_context_multiplier = 1;
++  uint32_t npostfix;
++  uint32_t ndirect_msb = 0;
++  BROTLI_BOOL check_orig = BROTLI_TRUE;
++  double best_dist_cost = 1e99;
++  BrotliEncoderParams orig_params = *params;
++  BrotliEncoderParams new_params = *params;
++
++  for (npostfix = 0; npostfix <= BROTLI_MAX_NPOSTFIX; npostfix++) {
++    for (; ndirect_msb < 16; ndirect_msb++) {
++      uint32_t ndirect = ndirect_msb << npostfix;
++      BROTLI_BOOL skip;
++      double dist_cost;
++      BrotliInitDistanceParams(&new_params, npostfix, ndirect);
++      if (npostfix == orig_params.dist.distance_postfix_bits &&
++          ndirect == orig_params.dist.num_direct_distance_codes) {
++        check_orig = BROTLI_FALSE;
++      }
++      skip = !ComputeDistanceCost(
++          cmds, num_commands,
++          &orig_params.dist, &new_params.dist, &dist_cost);
++      if (skip || (dist_cost > best_dist_cost)) {
++        break;
++      }
++      best_dist_cost = dist_cost;
++      params->dist = new_params.dist;
++    }
++    if (ndirect_msb > 0) ndirect_msb--;
++    ndirect_msb /= 2;
++  }
++  if (check_orig) {
++    double dist_cost;
++    ComputeDistanceCost(cmds, num_commands,
++                        &orig_params.dist, &orig_params.dist, &dist_cost);
++    if (dist_cost < best_dist_cost) {
++      best_dist_cost = dist_cost;
++      params->dist = orig_params.dist;
++    }
++  }
++  RecomputeDistancePrefixes(cmds, num_commands,
++                            &orig_params.dist, &params->dist);
+ 
+   BrotliSplitBlock(m, cmds, num_commands,
+                    ringbuffer, pos, mask, params,
+diff --git a/c/enc/metablock.h b/c/enc/metablock.h
+index 76a65940..334a79a4 100644
+--- a/c/enc/metablock.h
++++ b/c/enc/metablock.h
+@@ -67,15 +67,18 @@ static BROTLI_INLINE void DestroyMetaBlockSplit(
+   BROTLI_FREE(m, mb->distance_histograms);
+ }
+ 
+-/* Uses the slow shortest-path block splitter and does context clustering. */
++/* Uses the slow shortest-path block splitter and does context clustering.
++   The distance parameters are dynamically selected based on the commands
++   which get recomputed under the new distance parameters. The new distance
++   parameters are stored into *params. */
+ BROTLI_INTERNAL void BrotliBuildMetaBlock(MemoryManager* m,
+                                           const uint8_t* ringbuffer,
+                                           const size_t pos,
+                                           const size_t mask,
+-                                          const BrotliEncoderParams* params,
++                                          BrotliEncoderParams* params,
+                                           uint8_t prev_byte,
+                                           uint8_t prev_byte2,
+-                                          const Command* cmds,
++                                          Command* cmds,
+                                           size_t num_commands,
+                                           ContextType literal_context_mode,
+                                           MetaBlockSplit* mb);
+@@ -92,6 +95,9 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
+ BROTLI_INTERNAL void BrotliOptimizeHistograms(uint32_t num_distance_codes,
+                                               MetaBlockSplit* mb);
+ 
++BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliEncoderParams* params,
++    uint32_t npostfix, uint32_t ndirect);
++
+ #if defined(__cplusplus) || defined(c_plusplus)
+ }  /* extern "C" */
+ #endif
+diff --git a/c/enc/write_bits.h b/c/enc/write_bits.h
+index 7733d925..ddfebeb7 100644
+--- a/c/enc/write_bits.h
++++ b/c/enc/write_bits.h
+@@ -44,7 +44,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
+      bits are in *p and we write 57 bits, then the next write will
+      access a byte that was never initialized). */
+   uint8_t* p = &array[*pos >> 3];
+-  uint64_t v = *p;
++  uint64_t v = (uint64_t)(*p);  /* Zero-extend 8 to 64 bits. */
+   BROTLI_LOG(("WriteBits  %2d  0x%08x%08x  %10d\n", (int)n_bits,
+       (uint32_t)(bits >> 32), (uint32_t)(bits & 0xFFFFFFFF),
+       (int)*pos));
+diff --git a/c/include/brotli/decode.h b/c/include/brotli/decode.h
+index 61a4326c..0f5c8f9d 100644
+--- a/c/include/brotli/decode.h
++++ b/c/include/brotli/decode.h
+@@ -85,9 +85,8 @@ typedef enum {
+   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_2, -15) SEPARATOR              \
+   BROTLI_ERROR_CODE(_ERROR_FORMAT_, DISTANCE, -16) SEPARATOR               \
+                                                                            \
+-  /* -17 code is reserved */                                               \
++  /* -17..-18 codes are reserved */                                        \
+                                                                            \
+-  BROTLI_ERROR_CODE(_ERROR_, COMPOUND_DICTIONARY, -18) SEPARATOR           \
+   BROTLI_ERROR_CODE(_ERROR_, DICTIONARY_NOT_SET, -19) SEPARATOR            \
+   BROTLI_ERROR_CODE(_ERROR_, INVALID_ARGUMENTS, -20) SEPARATOR             \
+                                                                            \
+diff --git a/c/tools/brotli.c b/c/tools/brotli.c
+index 17a3bb68..a1220806 100644
+--- a/c/tools/brotli.c
++++ b/c/tools/brotli.c
+@@ -78,7 +78,7 @@ typedef enum {
+   COMMAND_VERSION
+ } Command;
+ 
+-#define DEFAULT_LGWIN 22
++#define DEFAULT_LGWIN 24
+ #define DEFAULT_SUFFIX ".br"
+ #define MAX_OPTIONS 20
+ 
+@@ -93,6 +93,7 @@ typedef struct {
+   BROTLI_BOOL write_to_stdout;
+   BROTLI_BOOL test_integrity;
+   BROTLI_BOOL decompress;
++  BROTLI_BOOL large_window;
+   const char* output_path;
+   const char* suffix;
+   int not_input_indices[MAX_OPTIONS];
+@@ -449,6 +450,24 @@ static Command ParseParams(Context* params) {
+                     params->lgwin, BROTLI_MIN_WINDOW_BITS);
+             return COMMAND_INVALID;
+           }
++        } else if (strncmp("large_window", arg, key_len) == 0) {
++          /* This option is intentionally not mentioned in help. */
++          if (lgwin_set) {
++            fprintf(stderr, "lgwin parameter already set\n");
++            return COMMAND_INVALID;
++          }
++          lgwin_set = ParseInt(value, 0,
++                               BROTLI_LARGE_MAX_WINDOW_BITS, &params->lgwin);
++          if (!lgwin_set) {
++            fprintf(stderr, "error parsing lgwin value [%s]\n", value);
++            return COMMAND_INVALID;
++          }
++          if (params->lgwin != 0 && params->lgwin < BROTLI_MIN_WINDOW_BITS) {
++            fprintf(stderr,
++                    "lgwin parameter (%d) smaller than the minimum (%d)\n",
++                    params->lgwin, BROTLI_MIN_WINDOW_BITS);
++            return COMMAND_INVALID;
++          }
+         } else if (strncmp("output", arg, key_len) == 0) {
+           if (output_set) {
+             fprintf(stderr,
+@@ -506,39 +525,40 @@ static void PrintVersion(void) {
+   fprintf(stdout, "brotli %d.%d.%d\n", major, minor, patch);
+ }
+ 
+-static void PrintHelp(const char* name) {
++static void PrintHelp(const char* name, BROTLI_BOOL error) {
++  FILE* media = error ? stderr : stdout;
+   /* String is cut to pieces with length less than 509, to conform C90 spec. */
+-  fprintf(stdout,
++  fprintf(media,
+ "Usage: %s [OPTION]... [FILE]...\n",
+           name);
+-  fprintf(stdout,
++  fprintf(media,
+ "Options:\n"
+ "  -#                          compression level (0-9)\n"
+ "  -c, --stdout                write on standard output\n"
+ "  -d, --decompress            decompress\n"
+ "  -f, --force                 force output file overwrite\n"
+ "  -h, --help                  display this help and exit\n");
+-  fprintf(stdout,
++  fprintf(media,
+ "  -j, --rm                    remove source file(s)\n"
+ "  -k, --keep                  keep source file(s) (default)\n"
+ "  -n, --no-copy-stat          do not copy source file(s) attributes\n"
+ "  -o FILE, --output=FILE      output file (only if 1 input file)\n");
+-  fprintf(stdout,
++  fprintf(media,
+ "  -q NUM, --quality=NUM       compression level (%d-%d)\n",
+           BROTLI_MIN_QUALITY, BROTLI_MAX_QUALITY);
+-  fprintf(stdout,
++  fprintf(media,
+ "  -t, --test                  test compressed file integrity\n"
+ "  -v, --verbose               verbose mode\n");
+-  fprintf(stdout,
++  fprintf(media,
+ "  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d)\n",
+           BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS);
+-  fprintf(stdout,
++  fprintf(media,
+ "                              window size = 2**NUM - 16\n"
+ "                              0 lets compressor choose the optimal value\n");
+-  fprintf(stdout,
++  fprintf(media,
+ "  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
+           DEFAULT_SUFFIX);
+-  fprintf(stdout,
++  fprintf(media,
+ "  -V, --version               display version and exit\n"
+ "  -Z, --best                  use best compression level (11) (default)\n"
+ "Simple options could be coalesced, i.e. '-9kf' is equivalent to '-9 -k -f'.\n"
+@@ -853,6 +873,10 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
+       fprintf(stderr, "out of memory\n");
+       return BROTLI_FALSE;
+     }
++    /* This allows decoding "large-window" streams. Though it creates
++       fragmentation (new builds decode streams that old builds don't),
++       it is better from used experience perspective. */
++    BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
+     is_ok = OpenFiles(context);
+     if (is_ok && !context->current_input_path &&
+         !context->force_overwrite && isatty(STDIN_FILENO)) {
+@@ -908,6 +932,10 @@ static BROTLI_BOOL CompressFiles(Context* context) {
+         BROTLI_PARAM_QUALITY, (uint32_t)context->quality);
+     if (context->lgwin > 0) {
+       /* Specified by user. */
++      /* Do not enable "large-window" extension, if not required. */
++      if (context->lgwin > BROTLI_MAX_WINDOW_BITS) {
++        BrotliEncoderSetParameter(s, BROTLI_PARAM_LARGE_WINDOW, 1u);
++      }
+       BrotliEncoderSetParameter(s,
+           BROTLI_PARAM_LGWIN, (uint32_t)context->lgwin);
+     } else {
+@@ -959,6 +987,7 @@ int main(int argc, char** argv) {
+   context.verbose = BROTLI_FALSE;
+   context.write_to_stdout = BROTLI_FALSE;
+   context.decompress = BROTLI_FALSE;
++  context.large_window = BROTLI_FALSE;
+   context.output_path = NULL;
+   context.suffix = DEFAULT_SUFFIX;
+   for (i = 0; i < MAX_OPTIONS; ++i) context.not_input_indices[i] = 0;
+@@ -1018,8 +1047,8 @@ int main(int argc, char** argv) {
+     case COMMAND_HELP:
+     case COMMAND_INVALID:
+     default:
+-      PrintHelp(FileName(argv[0]));
+       is_ok = (command == COMMAND_HELP);
++      PrintHelp(FileName(argv[0]), is_ok);
+       break;
+   }
+ 
