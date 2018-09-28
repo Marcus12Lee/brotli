@@ -1,10 +1,11 @@
 Source: brotli
 Section: python
 Priority: optional
-Maintainer: Tomasz Buchert <tomasz@debian.org>
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+XSBC-Original-Maintainer: Tomasz Buchert <tomasz@debian.org>
 Uploaders: Ondřej Surý <ondrej@debian.org>
 Build-Depends: cmake,
-               debhelper (>= 11),
+               debhelper (>= 9),
                dh-python,
                python,
                python-dev,

@@ -1,3 +1,11 @@
+brotli (1.0.3-1ubuntu1~16.04.1) xenial; urgency=medium
+
+  * Backport from Ubuntu 18.04 LTS. This updated version is required for
+    woff2 support in webkit2gtk. (LP: #1795077)
+  * Lower debhelper compat to 9
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Fri, 28 Sep 2018 17:36:57 -0400
+
 brotli (1.0.3-1ubuntu1) bionic; urgency=medium
 
   * Apply pull requests #651, #656 to fix alignment issues on armhf.
