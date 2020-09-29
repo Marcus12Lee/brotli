@@ -1,3 +1,14 @@
+brotli (1.0.3-1ubuntu1~16.04.2) xenial-security; urgency=medium
+
+  * SECURITY UPDATE: Buffer overflow
+    - debian/patches/CVE-2020-8927.patch: fix potential overflow when
+      input chunk is >2GiB in c/common/*, c/dec/*, c/enc/*,
+      research/brotli_decoder.c, research/draw_histogram.cc,
+      scripts/.bintray.json, scripts/source.lst, setup.py.
+    - CVE-2020-8927
+
+ -- Leonidas S. Barbosa <leo.barbosa@canonical.com>  Tue, 29 Sep 2020 11:20:46 -0300
+
 brotli (1.0.3-1ubuntu1~16.04.1) xenial; urgency=medium
 
   * Backport from Ubuntu 18.04 LTS. This updated version is required for
