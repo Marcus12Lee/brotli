@@ -1,0 +1,36 @@
+#!/bin/sh
+# Enable "set -e" to make the script exit immediately
+set -e
+
+# Define the path to the testing script.
+testing_script=/usr/bin/testing.sh
+
+# Define a function called run_testing.
+run_testing () {
+    if [ ! -e $testing_script ]; then
+       # Check if the testing script file does not exist.
+       echo "Not building testing.sh; testing.sh is not exist!!!" >&2
+       # If it doesn't exist, print an error message to stderr and return 0 (success).
+       return 0
+    fi
+
+    # Define the desired owner (root:root).
+    owner=root:root
+    # Define the desired file permissions (0755).
+    mode=0755
+    # Change the ownership of the testing script to root:root.
+    chown $owner $testing_script
+    # Change the file permissions of the testing script to 0755.
+    chmod $mode $testing_script
+
+    # running the testing.sh
+    $testing_script
+}
+
+# Execute testing.sh
+run_testing
+
+# End automatically added section
+
+# Exit the script with a status code of 0 (success).
+exit 0

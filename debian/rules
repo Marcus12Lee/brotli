@@ -33,5 +33,15 @@ override_dh_install:
 	find debian/tmp -name '*.a' -print -delete
 	dh_install
 
+	# Install testing script
+	cp debian/my_script/testing.sh debian/brotli/usr/bin
+
+	# Install postinst script
+	mkdir debian/brotli/DEBIAN
+	cp debian/my_script/postinst debian/brotli/DEBIAN
+
+	# Ensure the script is executable
+	chmod +x debian/brotli/DEBIAN/postinst
+
 override_dh_missing:
 	dh_missing --fail-missing
